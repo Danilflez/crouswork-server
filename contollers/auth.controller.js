@@ -1,269 +1,233 @@
-const db = require("../database");
+const sql = require("../database");
 const bcrypt = require("bcryptjs");
-const { generateToken, decodeToken } = require("../utils");
+const { generateToken } = require("../utils");
 const nodemailer = require("nodemailer");
 const { v4 } = require("uuid");
 
 const transporter = nodemailer.createTransport({
-	service: "gmail",
-	auth: {
-		user: "webisupagency@gmail.com",
-		pass: "lkil gttp gykx phvx",
-	},
+    service: "gmail",
+    auth: {
+        user: "webisupagency@gmail.com",
+        pass: "lkil gttp gykx phvx",
+    },
 });
 
 const authController = {
-	login: async (req, res) => {
-		try {
-			const { email, password } = req.body;
-			const user = await db.query(
-				`SELECT * FROM "user" WHERE email = $1`,
-				[email]
-			);
+    login: async (req, res) => {
+        try {
+            const { email, password } = req.body;
+            const userList = await sql`SELECT * FROM "user" WHERE email = ${email}`;
 
-			if (user.rows.length === 0) {
-				return res
-					.status(400)
-					.json({ message: "Пользователь не найден" });
-			}
-			if (!user.rows[0].is_confirmed) {
-				return res.status(400).json({
-					message:
-						"Аккаунт не подтвержден. Проверьте вашу почту для подтверждения регистрации",
-				});
-			}
-			const checkPass = await bcrypt.compare(
-				password,
-				user.rows[0].password
-			);
-			if (!checkPass) {
-				return res.status(400).json({ message: "Неверный пароль" });
-			}
+            if (userList.length === 0) {
+                return res.status(400).json({ message: "Пользователь не найден" });
+            }
 
-			const token = generateToken({
-				id: user.rows[0].id,
-				email: user.rows[0].email,
-			});
-			res.json({ token, message: "Вы успешно авторизовались" });
-		} catch (error) {
-			res.status(500).json({ error: "Ошибка авторизации" });
-		}
-	},
-	register: async (req, res) => {
-		try {
-			const { email, password } = req.body;
-			const existingUser = await db.query(
-				`SELECT * FROM "user" WHERE email = $1`,
-				[email]
-			);
+            const user = userList[0];
+            if (!user.is_confirmed) {
+                return res.status(400).json({
+                    message: "Аккаунт не подтвержден. Проверьте вашу почту для подтверждения регистрации",
+                });
+            }
 
-			if (existingUser && existingUser.rows.length > 0) {
-				if (!existingUser.rows[0].is_confirmed) {
-					return res
-						.status(400)
-						.json({ message: "Подтвердите почту" });
-				}
+            const checkPass = await bcrypt.compare(password, user.password);
+            if (!checkPass) {
+                return res.status(400).json({ message: "Неверный пароль" });
+            }
 
-				return res
-					.status(400)
-					.json({ message: "Этот пользователь уже зарегистрирован" });
-			}
+            const token = generateToken({
+                id: user.id,
+                email: user.email,
+            });
+            res.json({ token, message: "Вы успешно авторизовались" });
+        } catch (error) {
+            res.status(500).json({ error: "Ошибка авторизации" });
+        }
+    },
 
-			const hash = await bcrypt.hash(password, 10);
-			const confirmToken = v4().split("-")[0]; // Создание уникального кода подтверждения
+    register: async (req, res) => {
+        try {
+            const { email, password } = req.body;
+            const existingUser = await sql`SELECT * FROM "user" WHERE email = ${email}`;
 
-			await db.query(
-				`INSERT INTO "user" (email, password, is_confirmed, confirm_token) VALUES ($1, $2, $3, $4) RETURNING id, email`,
-				[email, hash, 0, confirmToken]
-			);
+            if (existingUser.length > 0) {
+                const user = existingUser[0];
+                if (!user.is_confirmed) {
+                    return res.status(400).json({ message: "Подтвердите почту" });
+                }
+                return res
+                    .status(400)
+                    .json({ message: "Этот пользователь уже зарегистрирован" });
+            }
 
-			const mailBody = `
-				<div>
-					<h1 style='color: #6f4ff2'>WEBI Marketplace</h1>
-					<h2>
-						Ваш <i style='color: #6f4ff2'>код</i> для подтверждения почты:</h2>
-					<br/> 
-					<h3>
-						<b style='color: #6f4ff2' class='token'>${confirmToken}</b>
-					</h3>
-				</div>
-			`;
+            const hash = await bcrypt.hash(password, 10);
+            const confirmToken = v4().split("-")[0];
 
-			const mailOptions = {
-				from: "Webi",
-				to: email,
-				html: mailBody,
-				subject: "Подтверждение почты",
-			};
+            await sql`
+                INSERT INTO "user" (email, password, is_confirmed, confirm_token)
+                VALUES (${email}, ${hash}, ${0}, ${confirmToken})
+            `;
 
-			transporter.sendMail(mailOptions, (error, info) => {
-				if (error) {
-					console.error("Ошибка отправки электронной почты:", error);
-					res.status(500).json({
-						error: "Ошибка отправки электронной почты",
-					});
-				} else {
-					res.json({
-						message:
-							"Подтверждение регистрации отправлено на вашу почту",
-					});
-				}
-			});
-		} catch (error) {
-			console.error("Ошибка регистрации:", error);
-			res.status(500).json({ error: "Ошибка регистрации" });
-		}
-	},
-	confirmEmail: async (req, res) => {
-		try {
-			const { confirmToken } = req.body;
+            const mailBody = `
+                <div>
+                    <h1 style='color: #6f4ff2'>WEBI Marketplace</h1>
+                    <h2>Ваш <i style='color: #6f4ff2'>код</i> для подтверждения почты:</h2>
+                    <br/> 
+                    <h3>
+                        <b style='color: #6f4ff2' class='token'>${confirmToken}</b>
+                    </h3>
+                </div>
+            `;
 
-			const user = await db.query(
-				`SELECT * FROM "user" WHERE confirm_token = $1`,
-				[confirmToken]
-			);
+            const mailOptions = {
+                from: "Webi",
+                to: email,
+                html: mailBody,
+                subject: "Подтверждение почты",
+            };
 
-			if (!user.rows.length) {
-				return res
-					.status(400)
-					.json({ message: "Неверный код подтверждения" });
-			}
+            transporter.sendMail(mailOptions, (error) => {
+                if (error) {
+                    res.status(500).json({ error: "Ошибка отправки электронной почты" });
+                } else {
+                    res.json({
+                        message: "Подтверждение регистрации отправлено на вашу почту",
+                    });
+                }
+            });
+        } catch (error) {
+            res.status(500).json({ error: "Ошибка регистрации" });
+        }
+    },
 
-			const [{ email, id }] = user.rows;
+    confirmEmail: async (req, res) => {
+        try {
+            const { confirmToken } = req.body;
+            const user = await sql`SELECT * FROM "user" WHERE confirm_token = ${confirmToken}`;
 
-			const token = await generateToken({ id, email });
+            if (user.length === 0) {
+                return res.status(400).json({ message: "Неверный код подтверждения" });
+            }
 
-			await db.query(
-				`UPDATE "user" SET is_confirmed = true WHERE confirm_token = $1`,
-				[confirmToken]
-			);
+            const [{ email, id }] = user;
 
-			res.json({ message: "Почта подтверждена", token });
-		} catch (error) {
-			console.error("Ошибка подтверждения:", error);
-			res.status(500).json({ error: "Ошибка подтверждения" });
-		}
-	},
-	sendResetCode: async (req, res) => {
-		const { email } = req.body;
+            const token = generateToken({ id, email });
 
-		const user = await db.query(`SELECT * FROM "user" WHERE email = $1`, [
-			email,
-		]);
+            await sql`
+                UPDATE "user" SET is_confirmed = true WHERE confirm_token = ${confirmToken}
+            `;
 
-		if (!user.rows.length) {
-			return res.status(400).json({ message: "Пользователь не найден" });
-		}
+            res.json({ message: "Почта подтверждена", token });
+        } catch (error) {
+            res.status(500).json({ error: "Ошибка подтверждения" });
+        }
+    },
 
-		const [{ confirm_token }] = user.rows;
+    sendResetCode: async (req, res) => {
+        try {
+            const { email } = req.body;
+            const user = await sql`SELECT * FROM "user" WHERE email = ${email}`;
 
-		const confirmSlicedToken = confirm_token.slice(0, -2) + "rp";
+            if (user.length === 0) {
+                return res.status(400).json({ message: "Пользователь не найден" });
+            }
 
-		const mailBody = `
-				<div>
-					<h1 style='color: #6f4ff2'>WEBI Marketplace</h1>
-					<h2>
-						Ваш <i style='color: #6f4ff2'>код</i> для восстановления пароля:</h2>
-					<br/>
-					<h3>
-						<b style='color: #6f4ff2' class='token'>${confirmSlicedToken}</b>
-					</h3>
-				</div>
-			`;
+            const [{ confirm_token }] = user;
 
-		const mailOptions = {
-			from: "Webi",
-			to: email,
-			html: mailBody,
-			subject: "Восстановление пароля",
-		};
+            const confirmSlicedToken = confirm_token.slice(0, -2) + "rp";
 
-		transporter.sendMail(mailOptions, (error, info) => {
-			if (error) {
-				console.error("Ошибка отправки электронной почты:", error);
-				res.status(500).json({
-					error: "Ошибка отправки электронной почты",
-				});
-			} else {
-				res.json({
-					message:
-						"Код для восстановление пароля отправлен на вашу почту",
-				});
-			}
-		});
+            const mailBody = `
+                <div>
+                    <h1 style='color: #6f4ff2'>WEBI Marketplace</h1>
+                    <h2>Ваш <i style='color: #6f4ff2'>код</i> для восстановления пароля:</h2>
+                    <br/>
+                    <h3>
+                        <b style='color: #6f4ff2' class='token'>${confirmSlicedToken}</b>
+                    </h3>
+                </div>
+            `;
 
-		res.json({ message: "Код подтверждения отправлен на почту" });
-	},
-	resetPassword: async (req, res) => {
-		try {
-			const { email, password, confirmToken } = req.body;
+            const mailOptions = {
+                from: "Webi",
+                to: email,
+                html: mailBody,
+                subject: "Восстановление пароля",
+            };
 
-			const user = await db.query(
-				`SELECT * FROM "user" WHERE email = $1`,
-				[email]
-			);
+            transporter.sendMail(mailOptions, (error) => {
+                if (error) {
+                    res.status(500).json({ error: "Ошибка отправки электронной почты" });
+                } else {
+                    res.json({
+                        message: "Код для восстановления пароля отправлен на вашу почту",
+                    });
+                }
+            });
+        } catch (error) {
+            res.status(500).json({
+                error: "Ошибка отправки кода для восстановления пароля",
+            });
+        }
+    },
 
-			if (!user.rows.length) {
-				return res
-					.status(400)
-					.json({ message: "Пользователь не найден" });
-			}
+    resetPassword: async (req, res) => {
+        try {
+            const { email, password, confirmToken } = req.body;
+            const user = await sql`SELECT * FROM "user" WHERE email = ${email}`;
 
-			const [{ id }] = user.rows;
-			const token = generateToken({ email, id });
-			const hash = await bcrypt.hash(password, 10);
+            if (user.length === 0) {
+                return res.status(400).json({ message: "Пользователь не найден" });
+            }
 
-			await db.query(
-				`UPDATE "user" SET password = $1 WHERE email = $2 AND confirm_token = $3 RETURNING email`,
-				[hash, email, confirmToken.slice(0, -2) + "rp"]
-			);
+            const hash = await bcrypt.hash(password, 10);
 
-			res.json({ token, message: "Пароль успешно изменен" });
-		} catch (error) {
-			console.error("Ошибка регистрации:", error);
-			res.status(500).json({ error: "Ошибка регистрации" });
-		}
-	},
-	supportRequest: async (req, res) => {
-		try {
-			const { email, body, name } = req.body;
-			const mailBody = `
-			<div>
-				<h1 style='color: #6f4ff2'>WEBI Marketplace</h1>
-		
-				<h2>Name: <span style='color: #6f4ff2'>${name}</span></h2>
-				<h2>Email: <span style='color: #6f4ff2'>${email}</span></h2>
-				<h2>Body: <span style='color: #6f4ff2'>${body}</span></h2>
-			</div>
-		`;
+            const result = await sql`
+                UPDATE "user" SET password = ${hash}
+                WHERE email = ${email} AND confirm_token = ${confirmToken.slice(0, -2) + "rp"}
+            `;
 
-			const mailOptions = {
-				from: "Webi",
-				to: "webisupagency@gmail.com",
-				html: mailBody,
-				subject: "Обращение в поддержку",
-			};
+            if (result.count === 0) {
+                return res.status(400).json({ message: "Неверный код подтверждения" });
+            }
 
-			transporter.sendMail(mailOptions, (error, info) => {
-				if (error) {
-					console.error("Ошибка отправки электронной почты:", error);
-					res.status(500).json({
-						error: "Ошибка отправки электронной почты",
-					});
-				} else {
-					res.json({
-						message:
-							"Код для восстановление пароля отправлен на вашу почту",
-					});
-				}
-			});
+            const [{ id }] = user;
+            const token = generateToken({ email, id });
 
-			res.json({ message: "Обращение успешно отправлено" });
-		} catch (error) {
-			console.error("Ошибка регистрации:", error);
-			res.status(500).json({ error: "Ошибка регистрации" });
-		}
-	},
+            res.json({ token, message: "Пароль успешно изменен" });
+        } catch (error) {
+            res.status(500).json({ error: "Ошибка сброса пароля" });
+        }
+    },
+
+    supportRequest: async (req, res) => {
+        try {
+            const { email, body, name } = req.body;
+            const mailBody = `
+                <div>
+                    <h1 style='color: #6f4ff2'>WEBI Marketplace</h1>
+                    <h2>Name: <span style='color: #6f4ff2'>${name}</span></h2>
+                    <h2>Email: <span style='color: #6f4ff2'>${email}</span></h2>
+                    <h2>Body: <span style='color: #6f4ff2'>${body}</span></h2>
+                </div>
+            `;
+
+            const mailOptions = {
+                from: "Webi",
+                to: "webisupagency@gmail.com",
+                html: mailBody,
+                subject: "Обращение в поддержку",
+            };
+
+            transporter.sendMail(mailOptions, (error) => {
+                if (error) {
+                    res.status(500).json({ error: "Ошибка отправки электронной почты" });
+                } else {
+                    res.json({ message: "Обращение успешно отправлено" });
+                }
+            });
+        } catch (error) {
+            res.status(500).json({ error: "Ошибка обработки запроса в поддержку" });
+        }
+    },
 };
 
 module.exports = authController;

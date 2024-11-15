@@ -1,151 +1,120 @@
-const db = require("../database");
+const sql = require("../database");
 const bcrypt = require("bcryptjs");
 const { generateToken, decodeToken } = require("../utils");
 
 const userController = {
-	getUser: async (req, res) => {
-		try {
-			// Get token, sliced "Bearer" label
-			const [_, token] = req.headers.authorization.split(" ");
-			const { email } = decodeToken({ token });
+    getUser: async (req, res) => {
+        try {
+            const [_, token] = req.headers.authorization.split(" ");
+            const { email } = decodeToken({ token });
 
-			const result = await db.query(
-				`SELECT * FROM "user" WHERE email = $1`,
-				[email]
-			);
+            const result = await sql`SELECT * FROM "user" WHERE email = ${email}`;
 
-			if (result.rows.length === 0) {
-				return res
-					.status(400)
-					.json({ message: "Пользователь не найден" });
-			}
+            if (result.length === 0) {
+                return res.status(400).json({ message: "Пользователь не найден" });
+            }
 
-			const { password, is_confirmed, confirm_token, ...user } =
-				result.rows[0];
+            const { password, is_confirmed, confirm_token, ...user } = result[0];
 
-			res.json({ user });
-		} catch (error) {
-			res.status(500).json({ error: "Ошибка авторизации" });
-		}
-	},
-	changeEmail: async (req, res) => {
-		try {
-			const { currentEmail, newEmail, password } = req.body;
-			const [_, token] = req.headers.authorization.split(" ");
-			const { email: decodedEmail } = decodeToken({ token });
+            res.json({ user });
+        } catch (error) {
+            res.status(500).json({ error: "Ошибка авторизации" });
+        }
+    },
 
-			if (decodedEmail !== currentEmail) {
-				return res
-					.status(400)
-					.json({ message: "Некорректная текущая почта" });
-			}
+    changeEmail: async (req, res) => {
+        try {
+            const { currentEmail, newEmail, password } = req.body;
+            const [_, token] = req.headers.authorization.split(" ");
+            const { email: decodedEmail } = decodeToken({ token });
 
-			const result = await db.query(
-				`SELECT * FROM "user" WHERE email = $1`,
-				[decodedEmail]
-			);
+            if (decodedEmail !== currentEmail) {
+                return res
+                    .status(400)
+                    .json({ message: "Некорректная текущая почта" });
+            }
 
-			if (result.rows.length === 0) {
-				return res
-					.status(400)
-					.json({ message: "Пользователь не найден" });
-			}
+            const result = await sql`SELECT * FROM "user" WHERE email = ${decodedEmail}`;
 
-			const [user] = result.rows;
+            if (result.length === 0) {
+                return res.status(400).json({ message: "Пользователь не найден" });
+            }
 
-			bcrypt.compare(
-				password,
-				user.password,
-				(err, isSamePasswords, next) => {
-					if (!isSamePasswords) {
-						return res
-							.status(400)
-							.json({ message: "Некорректный пароль" });
-					}
-				}
-			);
+            const user = result[0];
+            const isSamePasswords = await bcrypt.compare(password, user.password);
 
-			db.query(`UPDATE "user" SET email = $1 WHERE email = $2`, [
-				newEmail,
-				currentEmail,
-			]);
+            if (!isSamePasswords) {
+                return res.status(400).json({ message: "Некорректный пароль" });
+            }
 
-			const updatedToken = generateToken({
-				id: user.id,
-				email: newEmail,
-			});
+            await sql`UPDATE "user" SET email = ${newEmail} WHERE email = ${currentEmail}`;
 
-			res.json({
-				token: updatedToken,
-				message: "Почта успешно изменена",
-			});
-		} catch (error) {
-			res.status(500).json({ error: "Ошибка сервера" });
-		}
-	},
-	changePassword: async (req, res) => {
-		try {
-			const { currentPassword, password } = req.body;
-			const [_, token] = req.headers.authorization.split(" ");
-			const { email, id } = decodeToken({ token });
+            const updatedToken = generateToken({
+                id: user.id,
+                email: newEmail,
+            });
 
-			const result = await db.query(
-				`SELECT * FROM "user" WHERE email = $1`,
-				[email]
-			);
+            res.json({
+                token: updatedToken,
+                message: "Почта успешно изменена",
+            });
+        } catch (error) {
+            res.status(500).json({ error: "Ошибка сервера" });
+        }
+    },
 
-			if (result.rows.length === 0) {
-				return res
-					.status(400)
-					.json({ message: "Пользователь не найден" });
-			}
+    changePassword: async (req, res) => {
+        try {
+            const { currentPassword, password } = req.body;
+            const [_, token] = req.headers.authorization.split(" ");
+            const { email } = decodeToken({ token });
 
-			const [user] = result.rows;
+            const result = await sql`SELECT * FROM "user" WHERE email = ${email}`;
 
-			bcrypt.compare(
-				currentPassword,
-				user.password,
-				(err, isSamePasswords) => {
-					if (!isSamePasswords) {
-						return res
-							.status(400)
-							.json({ message: "Некорректный пароль" });
-					}
-				}
-			);
+            if (result.length === 0) {
+                return res.status(400).json({ message: "Пользователь не найден" });
+            }
 
-			const hashedPassword = bcrypt.hash(password, 10);
+            const user = result[0];
+            const isSamePasswords = await bcrypt.compare(currentPassword, user.password);
 
-			await db.query(`UPDATE "user" SET password = $1 WHERE email = $2`, [
-				hashedPassword,
-				email,
-			]);
+            if (!isSamePasswords) {
+                return res.status(400).json({ message: "Некорректный пароль" });
+            }
 
-			res.json({
-				message: "Пароль успешно изменен",
-			});
-		} catch (error) {
-			res.status(500).json({ error: "Ошибка сервера" });
-		}
-	},
-	updateSubscription: async (req, res) => {
-		try {
-			res.json({
-				message: "Подписка успешно оформлена",
-			});
-		} catch (error) {
-			res.status(500).json({ error: "Ошибка сервера" });
-		}
-	},
-	removeSubscription: async (req, res) => {
-		try {
-			res.json({
-				message: "Подписка успешно отменена",
-			});
-		} catch (error) {
-			res.status(500).json({ error: "Ошибка сервера" });
-		}
-	},
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+            await sql`UPDATE "user" SET password = ${hashedPassword} WHERE email = ${email}`;
+
+            res.json({
+                message: "Пароль успешно изменен",
+            });
+        } catch (error) {
+            res.status(500).json({ error: "Ошибка сервера" });
+        }
+    },
+
+    updateSubscription: async (req, res) => {
+        try {
+            // Логика обновления подписки (если требуется работа с базой)
+            res.json({
+                message: "Подписка успешно оформлена",
+            });
+        } catch (error) {
+            res.status(500).json({ error: "Ошибка сервера" });
+        }
+    },
+
+    removeSubscription: async (req, res) => {
+        try {
+            // Логика удаления подписки (если требуется работа с базой)
+            res.json({
+                message: "Подписка успешно отменена",
+            });
+        } catch (error) {
+            res.status(500).json({ error: "Ошибка сервера" });
+        }
+    },
 };
 
 module.exports = userController;

@@ -12,9 +12,7 @@ const { createServer } = require("node:http");
 const corsOptions = {
 	origin: [
 		"http://localhost:3000",
-		"http://127.0.0.1:3000",
-		"https://webi-agency.ru",
-		"https://webi-app.vercel.app",
+		"http://localhost:3005"
 	],
 	credentials: true,
 	methods: ["GET", "POST", "DELETE", "PATCH", "PUT"],
@@ -32,9 +30,7 @@ const io = new Server(server, {
 	cors: {
 		origin: [
 			"http://localhost:3000",
-			"http://127.0.0.1:3000",
-			"https://webi-agency.ru",
-			"https://webi-app.vercel.app",
+			"http://localhost:3005"
 		],
 		credentials: true,
 		methods: ["GET", "POST", "DELETE", "PATCH", "PUT"],

@@ -24,14 +24,14 @@ router.get(
 	"/service/getPersonalServices",
 	serviceController.getPersonalServices
 );
-router.post("/order/createOrder", orderController.createOrder);
-router.post("/order/updateOrder", orderController.updateOrder);
-router.post("/order/resendOrderDetails", orderController.resendOrderDetails);
-router.post("/order/closeOrder", orderController.closeOrder);
-router.get("/order/getOrderById", (req, res) =>
-	orderController.getOrderById(req, res, io)
-);
-router.get("/order/getOrders", orderController.getOrders);
-router.post("/agency/sendContact", agencyController.sendContact);
+// router.post("/order/createOrder", orderController.createOrder);
+// router.post("/order/updateOrder", orderController.updateOrder);
+// router.post("/order/resendOrderDetails", orderController.resendOrderDetails);
+// router.post("/order/closeOrder", orderController.closeOrder);
+// router.get("/order/getOrderById", (req, res) =>
+// 	orderController.getOrderById(req, res, io)
+// );
+// router.get("/order/getOrders", orderController.getOrders);
+// router.post("/agency/sendContact", agencyController.sendContact);
 
 module.exports = router;
