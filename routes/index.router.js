@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const authController = require("../contollers/auth.controller");
 const userController = require("../contollers/user.controller");
-const serviceController = require("../contollers/service.controller");
+const serviceController = require("../contollers/сar.controller");
 const orderController = require("../contollers/order.controller");
 const agencyController = require("../contollers/agency.controller");
 
@@ -15,15 +15,15 @@ router.post("/auth/supportRequest", authController.supportRequest);
 router.post("/user/changeEmail", userController.changeEmail);
 router.get("/user/getUser", userController.getUser);
 router.post("/user/changePassword", userController.changePassword);
-router.post("/service/createService", serviceController.createService);
-router.post("/service/removeService", serviceController.removeService);
-router.post("/service/updateService", serviceController.updateService);
-router.get("/service/getServiceById", serviceController.getServiceById);
-router.get("/service/getServices", serviceController.getServices);
-router.get(
-	"/service/getPersonalServices",
-	serviceController.getPersonalServices
-);
+router.post("/car/createCar", serviceController.createCar);
+// router.post("/service/removeService", serviceController.removeService);
+router.post("/car/updateCar", serviceController.updateCar);
+router.get("/car/getCarById", serviceController.getCarById);
+router.get("/car/getAllCars", serviceController.getAllCars);
+// router.get(
+// 	"/service/getPersonalServices",
+// 	serviceController.getPersonalServices
+// );
 // router.post("/order/createOrder", orderController.createOrder);
 // router.post("/order/updateOrder", orderController.updateOrder);
 // router.post("/order/resendOrderDetails", orderController.resendOrderDetails);
