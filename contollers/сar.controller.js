@@ -29,7 +29,9 @@ const carController = {
   // Получение автомобиля по ID
   getCarById: async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.query;
+      console.log(id);
+      
 
       const result = await sql`
         SELECT * FROM "car"
