@@ -40,7 +40,6 @@ CREATE TABLE "order" (
    
 CREATE TABLE "car" (
     id SERIAL PRIMARY KEY,                -- Уникальный идентификатор
-    owner_id INTEGER REFERENCES "user"(id), -- Владелец автомобиля
     brand VARCHAR(100) NOT NULL,          -- Марка автомобиля (например, Toyota, BMW)
     model VARCHAR(100) NOT NULL,          -- Модель автомобиля (например, Camry, X5)
     year INTEGER NOT NULL,                -- Год выпуска

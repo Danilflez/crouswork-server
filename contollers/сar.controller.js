@@ -12,13 +12,38 @@ const carController = {
   // Получение всех автомобилей
   getAllCars: async (req, res) => {
     try {
-      const result = await sql`
-        SELECT * FROM "car"`;
-
+      const { title, type, priceFrom, priceTo } = req.query;
+  
+      // Базовый SQL-запрос
+      let query = sql`SELECT * FROM "car" WHERE 1=1`;
+  
+      // Добавляем фильтрацию по названию (brand или model)
+      if (title) {
+        if (type === '1') {
+          query = sql`${query} AND brand = ${title}`;
+        } else if (type === '0') {
+          query = sql`${query} AND model = ${title}`;
+        }
+      }
+  
+      // Добавляем фильтрацию по цене (от и до)
+      if (priceFrom) {
+        query = sql`${query} AND price >= ${priceFrom}`;
+      }
+  
+      if (priceTo) {
+        query = sql`${query} AND price <= ${priceTo}`;
+      }
+  
+      // Выполнение запроса
+      const result = await query;
+  
+      // Проверка на пустой результат
       if (result.length === 0) {
         return res.status(404).json({ message: "Автомобили не найдены" });
       }
-
+  
+      // Возврат результата
       res.json({ cars: result });
     } catch (error) {
       console.error("Ошибка при получении автомобилей:", error.message, error.stack);
