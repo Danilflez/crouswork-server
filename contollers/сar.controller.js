@@ -13,15 +13,15 @@ const carController = {
   getAllCars: async (req, res) => {
     try {
       const { title, type, priceFrom, priceTo } = req.query;
-  
+      
       // Базовый SQL-запрос
       let query = sql`SELECT * FROM "car" WHERE 1=1`;
   
       // Добавляем фильтрацию по названию (brand или model)
       if (title) {
-        if (type === '1') {
+        if (type === '0') {
           query = sql`${query} AND brand = ${title}`;
-        } else if (type === '0') {
+        } else if (type === '1') {
           query = sql`${query} AND model = ${title}`;
         }
       }
@@ -40,7 +40,7 @@ const carController = {
   
       // Проверка на пустой результат
       if (result.length === 0) {
-        return res.status(404).json({ message: "Автомобили не найдены" });
+        return res.json({ cars:[],message: "Автомобили не найдены" });
       }
   
       // Возврат результата

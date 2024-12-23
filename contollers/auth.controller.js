@@ -7,8 +7,8 @@ const { v4 } = require("uuid");
 const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-        user: "webisupagency@gmail.com",
-        pass: "lkil gttp gykx phvx",
+        user: "dk2249540@gmail.com",
+        pass: "jhiq btpv omxv nytr",
     },
 });
 
@@ -203,7 +203,7 @@ const authController = {
             const { email, body, name } = req.body;
             const mailBody = `
                 <div>
-                    <h1 style='color: #6f4ff2'>WEBI Marketplace</h1>
+                    <h1 style='color: #6f4ff2'>AutoShare</h1>
                     <h2>Name: <span style='color: #6f4ff2'>${name}</span></h2>
                     <h2>Email: <span style='color: #6f4ff2'>${email}</span></h2>
                     <h2>Body: <span style='color: #6f4ff2'>${body}</span></h2>
@@ -211,8 +211,8 @@ const authController = {
             `;
 
             const mailOptions = {
-                from: "Webi",
-                to: "webisupagency@gmail.com",
+                from: "AutoShare",
+                to: "dk2249540@gmail.com",
                 html: mailBody,
                 subject: "Обращение в поддержку",
             };

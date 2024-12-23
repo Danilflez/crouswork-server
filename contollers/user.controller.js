@@ -24,9 +24,12 @@ const userController = {
 
     changeEmail: async (req, res) => {
         try {
-            const { currentEmail, newEmail, password } = req.body;
+            const { currentEmail, email, password } = req.body;
+            console.log(currentEmail, email, password);
+            
             const [_, token] = req.headers.authorization.split(" ");
             const { email: decodedEmail } = decodeToken({ token });
+            
 
             if (decodedEmail !== currentEmail) {
                 return res
@@ -41,17 +44,18 @@ const userController = {
             }
 
             const user = result[0];
+            
             const isSamePasswords = await bcrypt.compare(password, user.password);
 
             if (!isSamePasswords) {
                 return res.status(400).json({ message: "Некорректный пароль" });
             }
 
-            await sql`UPDATE "user" SET email = ${newEmail} WHERE email = ${currentEmail}`;
+            await sql`UPDATE "user" SET email = ${email} WHERE email = ${currentEmail}`;
 
             const updatedToken = generateToken({
                 id: user.id,
-                email: newEmail,
+                email: email,
             });
 
             res.json({
